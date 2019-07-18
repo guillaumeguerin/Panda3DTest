@@ -15,12 +15,18 @@ from panda3d.core import CollisionHandlerQueue, CollisionRay
 from panda3d.core import Filename, AmbientLight, DirectionalLight
 from panda3d.core import PandaNode, NodePath, Camera, TextNode
 from panda3d.core import CollideMask
+from direct.gui.DirectGui import *
 from direct.gui.OnscreenText import OnscreenText
 from direct.actor.Actor import Actor
 import random
 import sys
 import os
 import math
+import socket
+
+# Function to put instructions on the screen.
+def addButton(posz, scale, msg):
+    return DirectButton(text = (msg), text_fg=(255,255,255,255), text_scale=0.5, scale=scale, parent=base.a2dTopLeft, pos=(0.55, 0, -0.55), image="gwButton.jpg", image_scale=(1,0,0.4), image_pos=(0,0,0.1),  frameSize=(-1,1,0,0.5), borderWidth=(0,0), frameColor=(255,0,0,0))
 
 # Function to put instructions on the screen.
 def addInstructions(pos, msg):
@@ -36,31 +42,45 @@ def addTitle(text):
 
 
 class RoamingRalphDemo(ShowBase):
+
     def __init__(self):
         # Set up the window, camera, etc.
         ShowBase.__init__(self)
 
         # Used for networking
         self.chosenLatency = 0
-        self.lastMousePosition = [0., 0.]
+        self.socket = socket.socket()
+        port = 12345
+        self.socket.connect(('127.0.0.1', port))
+        print(self.socket.recv(1024))
+
+        self.defaultMousePosition = [0., 0.]
+        self.lastMousePosition = self.defaultMousePosition
 
         # Set the background color to black
         self.win.setClearColor((0, 0, 0, 1))
 
         # This is used to store which keys are currently pressed.
         self.keyMap = {
-            "left": 0, "right": 0, "forward": 0, "backward": 0, "cam-left": 0, "cam-right": 0, "cam-multi": 0}
+            "left": 0, "right": 0, "forward": 0, "backward": 0, "cam-left": 0, "cam-right": 0, "cam-multi": 0, "cam-multi-end": 0}
 
         # Post the instructions
-        self.title = addTitle(
-            "Guigui Tutorial: Roaming Ralph (Walking on Uneven Terrain)")
-        self.inst1 = addInstructions(0.06, "[ESC]: Quit")
-        self.inst2 = addInstructions(0.12, "[Left Arrow]: Rotate Ralph Left")
-        self.inst3 = addInstructions(0.18, "[Right Arrow]: Rotate Ralph Right")
-        self.inst4 = addInstructions(0.24, "[Up Arrow]: Run Ralph Forward")
-        self.inst4 = addInstructions(0.30, "[Down Arrow]: Run Ralph Backward")
-        self.inst6 = addInstructions(0.36, "[A]: Rotate Camera Left")
-        self.inst7 = addInstructions(0.42, "[E]: Rotate Camera Right")
+        #self.title = addTitle("Guigui Tutorial: Roaming Ralph (Walking on Uneven Terrain)")
+        #self.inst1 = addInstructions(0.06, "[ESC]: Quit")
+        #self.inst2 = addInstructions(0.12, "[Left Arrow]: Rotate Ralph Left")
+        #self.inst3 = addInstructions(0.18, "[Right Arrow]: Rotate Ralph Right")
+        #self.inst4 = addInstructions(0.24, "[Up Arrow]: Run Ralph Forward")
+        #self.inst4 = addInstructions(0.30, "[Down Arrow]: Run Ralph Backward")
+        #self.inst6 = addInstructions(0.36, "[A]: Rotate Camera Left")
+        #self.inst7 = addInstructions(0.42, "[E]: Rotate Camera Right")
+
+        b = addButton(0., .1, "start")
+        #skills = OnscreenImage(image = 'gwSkills.jpg', pos = (0, 0, 0), scale=0.5)
+        myFrame = DirectFrame(frameColor=(255, 0, 0, 255),
+                      frameSize=(-0.6, 0.6, -0.25, 0.05),
+                      pos=(0, 0, -0.88), image = 'gwSkills.jpg', image_scale=(0.7,0,0.12))
+
+        #imageObject = OnscreenImage(image = 'gwButton.jpg', pos = (-0.5, 0, 0.02))
 
         # Set up the environment
         #
@@ -103,14 +123,14 @@ class RoamingRalphDemo(ShowBase):
         self.accept("arrow_down", self.setKey, ["backward", True])
         self.accept("a", self.setKey, ["cam-left", True])
         self.accept("e", self.setKey, ["cam-right", True])
-        self.accept("mouse1", self.setKey, ["cam-multi", True])
+        self.accept("mouse3", self.setKey, ["cam-multi", True])
         self.accept("arrow_left-up", self.setKey, ["left", False])
         self.accept("arrow_right-up", self.setKey, ["right", False])
         self.accept("arrow_up-up", self.setKey, ["forward", False])
         self.accept("arrow_down-up", self.setKey, ["backward", False])
         self.accept("a-up", self.setKey, ["cam-left", False])
         self.accept("e-up", self.setKey, ["cam-right", False])
-        self.accept("mouse1-up", self.setKey, ["cam-multi", False])
+        self.accept("mouse3-up", self.setKey, ["cam-multi-end", True])
 
         taskMgr.add(self.move, "moveTask")
 
@@ -189,6 +209,11 @@ class RoamingRalphDemo(ShowBase):
             self.camera.setX(self.camera, -20 * dt)
         if self.keyMap["cam-right"]:
             self.camera.setX(self.camera, +20 * dt)
+        if self.keyMap["cam-multi-end"] and self.keyMap["cam-multi"]:
+            self.keyMap["cam-multi"] = False
+            self.keyMap["cam-multi-end"] = False
+            self.lastMousePosition = self.defaultMousePosition
+
         if self.keyMap["cam-multi"]:
             # Mouse movements
             md = base.win.getPointer(0)
@@ -196,7 +221,17 @@ class RoamingRalphDemo(ShowBase):
             mouseY = md.getY()
             newMousePosition = [mouseX, mouseY]
             if self.lastMousePosition != newMousePosition:
-                print(self.lastMousePosition)
+                json = "{\"mouse : \"" + str(newMousePosition) + "}"
+                #print(json)
+            deltaMouseX = newMousePosition[0] - self.lastMousePosition[0]
+            deltaMouseY = newMousePosition[0] - self.lastMousePosition[0]
+            #print(deltaMouseX)
+            if(self.lastMousePosition != self.defaultMousePosition):
+                if(deltaMouseX > 0):
+                    self.camera.setX(self.camera, deltaMouseX * dt)
+                elif(deltaMouseX < 0):
+                    self.camera.setX(self.camera, deltaMouseX * dt)
+
             self.lastMousePosition = [mouseX, mouseY]
 
         # save ralph's initial position so that we can restore it,
@@ -273,7 +308,10 @@ class RoamingRalphDemo(ShowBase):
         else:
             self.chosenLatency = 0
             if self.isMoving:
-                print (self.ralph.getPos())
+                networkPosion = [self.ralph.getX(), self.ralph.getY(), self.ralph.getZ()]
+                json = "{\"character : \"" + str(networkPosion) + "}"
+                #c.send(json)
+                #print(json)
 
 
         # Keep the camera at one foot above the terrain,
@@ -292,6 +330,7 @@ class RoamingRalphDemo(ShowBase):
         # a floater which hovers above ralph's head.
         self.camera.lookAt(self.floater)
 
+        #c.close()
         return task.cont
 
 
