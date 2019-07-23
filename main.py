@@ -54,15 +54,18 @@ class RoamingRalphDemo(ShowBase):
         self.socket.connect(('127.0.0.1', port))
         print(self.socket.recv(1024))
 
+        # Mouse settings
         self.defaultMousePosition = [0., 0.]
         self.lastMousePosition = self.defaultMousePosition
+        self.desiredZoom = 10
 
         # Set the background color to black
-        self.win.setClearColor((0, 0, 0, 1))
+        self.win.setClearColor((1, 1, 1, 1))
+        self.win.setClearColorActive(1)
 
         # This is used to store which keys are currently pressed.
         self.keyMap = {
-            "left": 0, "right": 0, "forward": 0, "backward": 0, "cam-left": 0, "cam-right": 0, "cam-multi": 0, "cam-multi-end": 0}
+            "left": 0, "right": 0, "forward": 0, "backward": 0, "cam-left": 0, "cam-right": 0, "cam-multi": 0, "cam-multi-end": 0, "cam-zoom-up": 0, "cam-zoom-down": 0, "chat": 0}
 
         # Post the instructions
         #self.title = addTitle("Guigui Tutorial: Roaming Ralph (Walking on Uneven Terrain)")
@@ -75,6 +78,16 @@ class RoamingRalphDemo(ShowBase):
         #self.inst7 = addInstructions(0.42, "[E]: Rotate Camera Right")
 
         b = addButton(0., .1, "start")
+
+        
+        def clearText():
+	        self.chatEntry.enterText('')
+
+        def setText(textEntered):
+            clearText()
+            print(textEntered)
+
+        self.chatEntry = DirectEntry(text = "", width=30, scale=.05, initialText="Type Something", numLines = 2, focus=0, pos=(-1.2, 0, -0.6), command=setText, focusInCommand=clearText)
         #skills = OnscreenImage(image = 'gwSkills.jpg', pos = (0, 0, 0), scale=0.5)
         myFrame = DirectFrame(frameColor=(255, 0, 0, 255),
                       frameSize=(-0.6, 0.6, -0.25, 0.05),
@@ -124,6 +137,10 @@ class RoamingRalphDemo(ShowBase):
         self.accept("a", self.setKey, ["cam-left", True])
         self.accept("e", self.setKey, ["cam-right", True])
         self.accept("mouse3", self.setKey, ["cam-multi", True])
+        self.accept("wheel_up", self.setKey, ["cam-zoom-up", True])
+        self.accept("wheel_down", self.setKey, ["cam-zoom-down", True])
+        self.accept("enter", self.setKey, ["chat", True])
+
         self.accept("arrow_left-up", self.setKey, ["left", False])
         self.accept("arrow_right-up", self.setKey, ["right", False])
         self.accept("arrow_up-up", self.setKey, ["forward", False])
@@ -131,6 +148,8 @@ class RoamingRalphDemo(ShowBase):
         self.accept("a-up", self.setKey, ["cam-left", False])
         self.accept("e-up", self.setKey, ["cam-right", False])
         self.accept("mouse3-up", self.setKey, ["cam-multi-end", True])
+        #self.accept("mouse2-up", self.setKey, ["cam-zoom", False])
+        self.accept("enter-up", self.setKey, ["chat", False])
 
         taskMgr.add(self.move, "moveTask")
 
@@ -204,7 +223,16 @@ class RoamingRalphDemo(ShowBase):
 
         # If the camera-left key is pressed, move camera left.
         # If the camera-right key is pressed, move camera right.
-
+        #if self.keyMap["chat"]:
+            
+        if self.keyMap["cam-zoom-up"] and self.desiredZoom > 1:
+            self.camera.setY(self.camera, +80 * dt)
+            self.keyMap["cam-zoom-up"] = False
+            self.desiredZoom -= 1
+        if self.keyMap["cam-zoom-down"] and self.desiredZoom < 16:
+            self.camera.setY(self.camera, -80 * dt)
+            self.keyMap["cam-zoom-down"] = False
+            self.desiredZoom += 1
         if self.keyMap["cam-left"]:
             self.camera.setX(self.camera, -20 * dt)
         if self.keyMap["cam-right"]:
@@ -213,7 +241,6 @@ class RoamingRalphDemo(ShowBase):
             self.keyMap["cam-multi"] = False
             self.keyMap["cam-multi-end"] = False
             self.lastMousePosition = self.defaultMousePosition
-
         if self.keyMap["cam-multi"]:
             # Mouse movements
             md = base.win.getPointer(0)
@@ -231,6 +258,10 @@ class RoamingRalphDemo(ShowBase):
                     self.camera.setX(self.camera, deltaMouseX * dt)
                 elif(deltaMouseX < 0):
                     self.camera.setX(self.camera, deltaMouseX * dt)
+                if(deltaMouseY > 0):
+                    self.camera.setY(self.camera, deltaMouseY * dt)
+                elif(deltaMouseY < 0):
+                    self.camera.setY(self.camera, deltaMouseY * dt)
 
             self.lastMousePosition = [mouseX, mouseY]
 
@@ -273,9 +304,9 @@ class RoamingRalphDemo(ShowBase):
         camvec.setZ(0)
         camdist = camvec.length()
         camvec.normalize()
-        if camdist > 10.0:
-            self.camera.setPos(self.camera.getPos() + camvec * (camdist - 10))
-            camdist = 10.0
+        if camdist > 20.0:
+            self.camera.setPos(self.camera.getPos() + camvec * (camdist - 20))
+            camdist = 20.0
         if camdist < 5.0:
             self.camera.setPos(self.camera.getPos() - camvec * (5 - camdist))
             camdist = 5.0
